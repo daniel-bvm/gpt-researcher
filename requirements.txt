@@ -34,3 +34,5 @@ langgraph==0.2.76
 # uncomment for testing
 # pytest
 # pytest-asyncio
+
+git+https://github.com/daniel-bvm/http-middleware
