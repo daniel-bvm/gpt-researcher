@@ -1,14 +1,19 @@
 from bs4 import BeautifulSoup
 import os
-from ..utils import get_relevant_images
+from gpt_researcher.scraper.utils import get_relevant_images
+from gpt_researcher.utils.logger import get_formatted_logger
+import requests
+
+logger = get_formatted_logger()
 
 class FireCrawl:
 
-    def __init__(self, link, session=None):
+    def __init__(self, link: str, session: requests.Session | None = None):
         self.link = link
-        self.session = session
-        from firecrawl import FirecrawlApp
-        self.firecrawl = FirecrawlApp(api_key=self.get_api_key(), api_url=self.get_server_url())
+        self.session = session or requests.Session()
+        import firecrawl
+        self.firecrawl = firecrawl.Firecrawl(api_key=self.get_api_key(), api_url=self.get_server_url())
+        self.firecrawl_scrape_images: bool = os.environ.get("FIRECRAWL_SCRAPE_IMAGES", "false").lower().strip() in "true1yes"
 
     def get_api_key(self) -> str:
         """
@@ -49,31 +54,27 @@ class FireCrawl:
         """
 
         try:
-            response = self.firecrawl.scrape_url(url=self.link, formats=["markdown"])
-
-            # Check if the page has been scraped success
-            if "error" in response:
-                print("Scrape failed! : " + str(response["error"]))
-                return "", [], ""
-            elif response["metadata"]["statusCode"] != 200:
-                print("Scrape failed! : " + str(response))
-                return "", [], ""
-
-            # Extract the content (markdown) and title from FireCrawl response
-            content = response.markdown
-            title = response.metadata.get("title", "")
-
-            # Parse the HTML content of the response to create a BeautifulSoup object for the utility functions
-            response_bs = self.session.get(self.link, timeout=4)
-            soup = BeautifulSoup(
-                response_bs.content, "lxml", from_encoding=response_bs.encoding
+            response = self.firecrawl.scrape(
+                url=self.link, 
+                formats=["markdown"],
+                block_ads=True
             )
 
-            # Get relevant images using the utility function
-            image_urls = get_relevant_images(soup, self.link)
+            if response.metadata.status_code != 200 or response.metadata.error is not None:
+                logger.error(f"Scrape failed! : {response.metadata.error}; Status code: {response.metadata.status_code}")
+                return "", [], ""
 
-            return content, image_urls, title
+            content = response.markdown
+            title = response.metadata.title
+            relevant_image_urls = []
+
+            if self.firecrawl_scrape_images:
+                response_bs = self.session.get(self.link, timeout=4)
+                soup = BeautifulSoup(response.html, "lxml", from_encoding=response_bs.encoding)
+                relevant_image_urls = get_relevant_images(soup, self.link)
+
+            return content, relevant_image_urls, title
 
         except Exception as e:
-            print("Error! : " + str(e))
+            logger.error("Error! : " + str(e))
             return "", [], ""
