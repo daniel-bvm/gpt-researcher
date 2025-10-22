@@ -3,8 +3,10 @@ import os
 from gpt_researcher.scraper.utils import get_relevant_images
 from gpt_researcher.utils.logger import get_formatted_logger
 import requests
+from threading import Semaphore
 
 logger = get_formatted_logger()
+guard = Semaphore(4)
 
 class FireCrawl:
 
@@ -54,11 +56,12 @@ class FireCrawl:
         """
 
         try:
-            response = self.firecrawl.scrape(
-                url=self.link, 
-                formats=["markdown"],
-                block_ads=True
-            )
+            with guard:
+                response = self.firecrawl.scrape(
+                    url=self.link, 
+                    formats=["markdown"],
+                    block_ads=True
+                )
 
             if response.metadata.status_code != 200 or response.metadata.error is not None:
                 logger.error(f"Scrape failed! : {response.metadata.error}; Status code: {response.metadata.status_code}")
