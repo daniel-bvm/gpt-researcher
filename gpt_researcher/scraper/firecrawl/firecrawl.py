@@ -6,7 +6,7 @@ import requests
 from threading import Semaphore
 
 logger = get_formatted_logger()
-guard = Semaphore(4)
+guard = Semaphore(16)
 
 class FireCrawl:
 
