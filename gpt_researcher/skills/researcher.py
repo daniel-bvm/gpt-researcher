@@ -60,8 +60,9 @@ class ResearchConductor:
             retriever_names=retriever_names,  # Pass retriever names for MCP optimization
             **self.researcher.kwargs
         )
+
         self.logger.info(f"Research outline planned: {outline}")
-        return outline
+        return outline or []
 
     async def conduct_research(self):
         """Runs the GPT Researcher to conduct research"""
